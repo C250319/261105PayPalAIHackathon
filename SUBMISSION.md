@@ -85,6 +85,13 @@ If the shared free AI quota runs out, the app does not stop: a banner explains i
 
 paypal, paypal-javascript-sdk-v6, paypal-orders-v2, paypal-payments-v2, cloudflare-workers, cloudflare-durable-objects, cloudflare-workers-ai, mistral-small, llama-4, ag-grid, ag-charts, typescript, javascript, html, css, playwright
 
+## Tools used (AI and sponsor tools)
+
+- **Cloudflare Workers AI** — `@cf/mistralai/mistral-small-3.1-24b-instruct` (fallback `@cf/meta/llama-4-scout-17b-16e-instruct`). Used for: (1) turning the errand into a structured spending mandate (JSON-schema output), (2) the shopping agent that calls `buy` / `finish` tools, (3) an independent auditor that reviews each purchase line and can hold it for human approval, (4) a recap grounded only in the ledger facts when the hold is released. Runs inside the free tier (the app caps itself at 9,000 neurons per day) and falls back to a rules-only mode when the quota is used up.
+- **PayPal developer platform (sandbox)** — JavaScript SDK v6 (`<paypal-button>`, one-time payment session), Orders v2 (`intent: AUTHORIZE`, authorize, get), Payments v2 (partial capture with `final_capture: false`, refund, void).
+- **AG Grid Community** (sponsor tool) — the agent ledger, the mandates history grid and the store catalog grid; **AG Charts Community** — the spend-by-category donut.
+- **Kokoro-82M** (open-source TTS) — narration of the demo video only.
+
 ## Try it out
 
 - Live demo: https://allowance.261105cn.workers.dev
