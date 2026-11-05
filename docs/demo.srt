@@ -1,0 +1,91 @@
+1
+00:00:00,250 --> 00:00:02,447
+AI agents are starting to shop for us.
+
+2
+00:00:02,727 --> 00:00:06,923
+But today you either hand them your card, or you approve every single purchase.
+
+3
+00:00:07,924 --> 00:00:15,088
+Allowance is the middle ground: the agent's budget is a PayPal authorization hold, so it can only spend what you approved.
+
+4
+00:00:15,788 --> 00:00:23,155
+I describe an errand in plain English: coffee, oat milk and snacks for twelve people, two of them vegan, under $80.
+
+5
+00:00:23,855 --> 00:00:33,176
+Cloudflare Workers AI turns it into a mandate: an $80 hold, at most $25 per purchase, three allowed categories and a shopping list.
+
+6
+00:00:33,457 --> 00:00:35,404
+I can edit any of it before I approve.
+
+7
+00:00:36,103 --> 00:00:37,945
+Then I approve it once with PayPal.
+
+8
+00:00:38,225 --> 00:00:45,265
+The PayPal JavaScript SDK v6 opens the sandbox checkout for an order with intent AUTHORIZE.
+
+9
+00:00:45,965 --> 00:00:53,225
+Nothing is charged yet. PayPal places an $80 hold, and the mandate is signed and bound to that authorization.
+
+10
+00:00:53,925 --> 00:00:59,170
+Now the agent shops on its own: a Mistral model on Workers AI, calling a buy tool.
+
+11
+00:00:59,450 --> 00:01:07,227
+Every line passes 12 code checks and an independent AI auditor before it becomes a PayPal partial capture against the hold.
+
+12
+00:01:07,927 --> 00:01:14,519
+Ground coffee, oat milk and vegan trail mix: $49.70 in three PayPal captures.
+
+13
+00:01:14,799 --> 00:01:23,046
+The AG Grid ledger shows the AI's reasoning, the firewall verdict, the auditor's note and PayPal's capture IDs for every line.
+
+14
+00:01:23,746 --> 00:01:25,399
+What if the agent gets hijacked?
+
+15
+00:01:25,679 --> 00:01:36,216
+The red-team drill tries a gift card, a sponsored listing that tells AI agents to ignore the budget, a $249 espresso machine, a runaway quantity and a
+
+16
+00:01:36,216 --> 00:01:37,347
+made-up product.
+
+17
+00:01:38,048 --> 00:01:41,368
+The firewall blocks all five, and nothing reaches PayPal.
+
+18
+00:01:42,069 --> 00:01:49,924
+Even when someone asks the agent in chat to buy a gift card, the signed mandate wins: the agent tries, and the firewall says no.
+
+19
+00:01:50,623 --> 00:01:52,783
+When the errand is done, I release the rest.
+
+20
+00:01:53,062 --> 00:02:01,325
+Allowance voids the authorization, $30.30 goes straight back to the buyer, and AI writes a recap grounded in the ledger.
+
+21
+00:02:02,025 --> 00:02:07,631
+Every allowance is tracked in AG Grid, with PayPal's authorization state and the AI recap.
+
+22
+00:02:07,911 --> 00:02:12,377
+And if the free AI quota runs out, Allowance keeps working in rules-only mode.
+
+23
+00:02:13,078 --> 00:02:17,848
+Allowance. PayPal holds the money, AI runs the errand, and you stay in control.

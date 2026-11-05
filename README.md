@@ -6,7 +6,7 @@ Allowance lets an AI agent shop for you while a **PayPal authorization hold** ca
 
 **Live demo:** https://allowance.261105cn.workers.dev (PayPal **sandbox** only — no real money moves)
 
-**Devpost text:** [SUBMISSION.md](SUBMISSION.md) · **License:** [MIT](LICENSE)
+**Demo video (2:20):** [docs/demo.mp4](docs/demo.mp4) (English narration and burned-in subtitles; captions also in [docs/demo.srt](docs/demo.srt)) · **Devpost text:** [SUBMISSION.md](SUBMISSION.md) · **License:** [MIT](LICENSE)
 
 ![Agent ledger in AG Grid: AI reasoning, policy firewall, AI auditor and PayPal IDs for every attempt](docs/gallery-3-ledger.png)
 
@@ -176,7 +176,14 @@ npm test
 BASE_URL=https://<your-worker>.workers.dev PAYPAL_SANDBOX_BUYER_EMAIL=... PAYPAL_SANDBOX_BUYER_PASSWORD=... npm run e2e
 ```
 
-The E2E script needs Playwright with Chromium (`npm i -D playwright && npx playwright install chromium`). `npm run shots` captures the raw screenshots used for the gallery.
+The E2E script needs Playwright with Chromium (`npm i -D playwright && npx playwright install chromium`). `npm run shots` captures the raw screenshots used for the gallery (`python3 scripts/make_gallery.py <shots> docs`).
+
+The demo video is generated from a real run of the deployed app, not edited by hand:
+
+1. `VIDEO_DIR=/tmp/v npm run record` — Playwright drives the live app (with a visible cursor) and saves CDP screencast frames of the page and of the PayPal popup plus timestamped markers. The PayPal login screens are covered by a "credentials hidden" card in the final video.
+2. `python3 scripts/video/script.py /tmp/v` — writes the narration from the run's real numbers.
+3. `tts-venv/bin/python scripts/video/narrate.py /tmp/v model.onnx af_heart.bin` — English narration with the open-source Kokoro-82M TTS (Apache-2.0, runs locally, no API key).
+4. `python3 scripts/video/compose.py /tmp/v docs/demo.mp4` — syncs each scene to its narration, overlays the popup window, burns in subtitles and encodes H.264/AAC (FFmpeg).
 
 ## Built with
 
