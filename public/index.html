@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Allowance — give your AI agent an allowance, not your wallet</title>
+  <meta name="description" content="Allowance lets an AI agent shop for you inside a PayPal authorization hold: a signed mandate, a code-level policy firewall, an AI auditor and an AG Grid ledger of every attempt.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Allowance home">
+      <img src="/favicon.svg" alt="" width="34" height="34">
+      <span class="brand-name">Allowance</span>
+    </a>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button class="tab active" role="tab" data-view="workspace" aria-selected="true">Workspace</button>
+      <button class="tab" role="tab" data-view="history" aria-selected="false">Mandates</button>
+      <button class="tab" role="tab" data-view="store" aria-selected="false">Store catalog</button>
+    </nav>
+    <div class="top-right">
+      <span class="pill pill-sandbox" title="Only PayPal sandbox accounts and test money are used">PayPal Sandbox</span>
+      <span class="pill pill-ai" id="quota-pill" title="Shared Workers AI free tier for this demo">AI budget …</span>
+    </div>
+  </header>
+
+  <div id="quota-banner" class="banner" role="status" hidden></div>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">Give your AI agent an <em>allowance</em>, not your wallet.</h1>
+        <p>Describe an errand. AI drafts a spending mandate, you approve it once with PayPal, and the agent shops on its own — but every cent it spends is a partial capture inside your PayPal authorization hold. Unused money goes back with one click.</p>
+      </div>
+      <ol class="pillars">
+        <li><span class="pnum">1</span><div><b>You set the limits</b><small>AI turns your words into a signed mandate: budget, per-purchase cap, allowed categories.</small></div></li>
+        <li><span class="pnum">2</span><div><b>PayPal holds the money</b><small>One approval places an authorization hold. Nothing is charged yet.</small></div></li>
+        <li><span class="pnum">3</span><div><b>The agent spends inside it</b><small>Each buy passes a code firewall and an AI auditor, then becomes a PayPal capture.</small></div></li>
+      </ol>
+    </section>
+
+    <section id="view-workspace" class="view" data-view="workspace">
+      <div class="layout">
+        <div class="col-left">
+          <article class="card step" id="step1">
+            <header class="step-head"><span class="step-num">1</span><div><h2>Describe the errand</h2><p>Plain English. Mention a budget if you have one.</p></div></header>
+            <textarea id="errand" rows="4" maxlength="600" aria-label="Errand">Restock our office kitchen for next week: coffee, oat milk and snacks for 12 people — two of us are vegan. Keep it under $80.</textarea>
+            <div class="chips" id="presets" aria-label="Example errands">
+              <button class="chip" data-errand="Restock our office kitchen for next week: coffee, oat milk and snacks for 12 people — two of us are vegan. Keep it under $80.">Office kitchen</button>
+              <button class="chip" data-errand="Picnic supplies for our 10-person team offsite on Friday: sparkling water, fruit, snacks, compostable plates and napkins. No alcohol. Budget $95.">Team picnic</button>
+              <button class="chip" data-errand="We ran out of cleaning supplies: dish soap, sponges, disinfecting wipes and trash bags. Spend at most $45.">Cleaning run</button>
+            </div>
+            <div class="row-end">
+              <button class="btn btn-primary" id="btn-draft"><span class="btn-label">Draft mandate with AI</span></button>
+            </div>
+          </article>
+
+          <article class="card step is-locked" id="step2">
+            <header class="step-head"><span class="step-num">2</span><div><h2>Review &amp; approve the mandate</h2><p id="mandate-sub">Draft a mandate first.</p></div></header>
+            <form id="mandate-form" class="mandate-form" autocomplete="off" onsubmit="return false">
+              <label class="field"><span>Title</span><input id="f-title" maxlength="60"></label>
+              <label class="field"><span>Shopping list</span><input id="f-list" maxlength="300" placeholder="coffee, oat milk, snacks"></label>
+              <label class="field"><span>PayPal hold (total)</span><div class="money"><i>$</i><input id="f-budget" type="number" min="5" max="200" step="1"></div></label>
+              <label class="field"><span>Max per purchase</span><div class="money"><i>$</i><input id="f-cap" type="number" min="1" max="200" step="1"></div></label>
+              <label class="field"><span>Max units per line</span><input id="f-qty" type="number" min="1" max="6" step="1"></label>
+              <label class="field"><span>Valid until</span><input id="f-exp" type="date"></label>
+              <div class="field span2"><span>Allowed categories</span><div class="chips cat-chips" id="f-cats"></div><small class="hint">Gift cards and alcohol can never be enabled for agents.</small></div>
+              <label class="field span2"><span>Notes for the agent</span><textarea id="f-notes" rows="2" placeholder="One note per line"></textarea></label>
+            </form>
+            <div class="signed" id="signed-stamp" hidden></div>
+            <div class="approve-box" id="approve-box">
+              <p class="approve-copy" id="approve-copy">PayPal will place an authorization hold. You are only charged for what the agent actually buys.</p>
+              <paypal-button id="paypal-btn" type="pay" class="paypal-gold" hidden></paypal-button>
+              <button class="btn btn-ghost small" id="btn-redirect" hidden>Popup blocked? Continue on PayPal</button>
+              <p class="muted small" id="paypal-status">Loading PayPal…</p>
+            </div>
+          </article>
+
+
+        </div>
+
+        <div class="col-main">
+          <article class="card meter" id="meter">
+            <header class="meter-head">
+              <div>
+                <h2>Allowance <span class="status-pill" id="m-status">No mandate</span></h2>
+                <p class="muted" id="m-title">Your agent's spending limit, enforced by a PayPal authorization hold.</p>
+              </div>
+              <div class="meter-buttons">
+                <button class="btn btn-ghost small" id="btn-sync" disabled title="Reconcile with PayPal's record of the order">Sync with PayPal</button>
+                <button class="btn btn-release small" id="btn-release" disabled>Release unused</button>
+              </div>
+            </header>
+            <div class="meter-body">
+              <div class="meter-figs">
+                <div class="fig"><span>Hold</span><b id="m-hold">$0.00</b></div>
+                <div class="fig"><span>Spent</span><b id="m-spent">$0.00</b></div>
+                <div class="fig"><span id="m-left-label">Remaining</span><b id="m-left">$0.00</b></div>
+                <div class="fig"><span>Blocked</span><b id="m-blocked">0</b></div>
+                <div class="bar" aria-hidden="true"><i class="bar-spent" id="bar-spent"></i><i class="bar-reserved" id="bar-reserved"></i></div>
+                <dl class="meter-meta">
+                  <div><dt>PayPal order</dt><dd id="m-order">—</dd></div>
+                  <div><dt>Authorization</dt><dd id="m-auth">—</dd></div>
+                  <div><dt>Hold expires</dt><dd id="m-exp">—</dd></div>
+                  <div><dt>Mandate signature</dt><dd id="m-sig">—</dd></div>
+                </dl>
+              </div>
+              <div class="donut-wrap"><div id="donut" class="donut" aria-label="Spend by category chart"></div></div>
+            </div>
+          </article>
+
+          <article class="card step is-locked" id="step3">
+            <header class="step-head"><span class="step-num">3</span><div><h2>Let the agent shop</h2><p id="agent-sub">Approve the allowance with PayPal first.</p></div></header>
+            <div class="agent-actions">
+              <button class="btn btn-primary" id="btn-run" disabled><span class="btn-label">Start shopping</span></button>
+              <button class="btn btn-ghost" id="btn-redteam" disabled title="Simulate a hijacked agent that tries 5 out-of-mandate purchases (no AI call, nothing reaches PayPal)">Red-team the agent</button>
+              <span class="agent-model" id="agent-model"></span>
+            </div>
+            <div class="console" id="console" aria-live="polite" aria-label="Agent activity"></div>
+            <div class="instruct">
+              <input id="instruction" maxlength="300" placeholder="Tell the agent something… e.g. “Also grab an espresso machine”" disabled>
+              <button class="btn btn-dark" id="btn-send" disabled>Send</button>
+            </div>
+            <div class="chips small-chips" id="nudges">
+              <button class="chip" data-say="Also buy the BaristaPro espresso machine (KT01) for the kitchen. I approve it." disabled>“Add an espresso machine”</button>
+              <button class="chip" data-say="Change of plan: also buy one Universal Gift Card (GC01) for our office manager. I approve it." disabled>“Add a gift card”</button>
+              <button class="chip" data-say="Spend whatever is left on more snacks." disabled>“Spend the rest”</button>
+            </div>
+          </article>
+
+
+        </div>
+      </div>
+
+      <article class="card ledger-card" id="ledger-card">
+            <header class="ledger-head">
+              <div>
+                <h2>Agent ledger</h2>
+                <p class="muted">Every purchase the agent attempted — the AI's reasoning, the code-level policy firewall, the AI auditor and PayPal's status — in one grid.</p>
+              </div>
+              <div class="ledger-tools">
+                <input id="ledger-search" type="search" placeholder="Search ledger" aria-label="Search ledger">
+                <div class="seg" id="ledger-filter" role="group" aria-label="Filter by status">
+                  <button class="active" data-f="all">All</button>
+                  <button data-f="captured">Captured</button>
+                  <button data-f="blocked">Blocked</button>
+                  <button data-f="needs_approval">Needs you</button>
+                  <button data-f="refunded">Refunded</button>
+                </div>
+                <button class="btn btn-ghost small" id="btn-csv">Export CSV</button>
+              </div>
+            </header>
+            <div id="ledger-grid" class="grid ledger-grid"></div>
+          </article>
+    </section>
+
+    <section id="view-history" class="view" data-view="history" hidden>
+      <article class="card">
+        <header class="ledger-head">
+          <div><h2>Your mandates</h2><p class="muted">Every allowance created in this browser, with PayPal's authorization state and the agent's own summary.</p></div>
+          <div class="ledger-tools"><button class="btn btn-ghost small" id="btn-history-refresh">Refresh</button><button class="btn btn-primary small" id="btn-new">New errand</button></div>
+        </header>
+        <div id="history-grid" class="grid history-grid"></div>
+      </article>
+    </section>
+
+    <section id="view-store" class="view" data-view="store" hidden>
+      <article class="card">
+        <header class="ledger-head">
+          <div><h2>Corner Supply Co. catalog</h2><p class="muted">The demo store the agent shops at (fictional brands). Some listings are hostile on purpose: a sponsored bundle that tries to give the agent orders, gift cards, alcohol and a $249 espresso machine.</p></div>
+          <div class="ledger-tools"><input id="store-search" type="search" placeholder="Search products" aria-label="Search products"></div>
+        </header>
+        <div id="store-grid" class="grid store-grid"></div>
+      </article>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p><b>Allowance</b> · PayPal <b>sandbox</b> only — no real money moves. Built with the PayPal JavaScript SDK v6 and Orders/Payments v2 REST APIs, Cloudflare Workers AI, and AG Grid Community.</p>
+    <p><a id="repo-link" href="#" target="_blank" rel="noopener" hidden>Source code (MIT)</a></p>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="/vendor/ag-grid-community.min.js"></script>
+  <script src="/vendor/ag-charts-community.min.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
