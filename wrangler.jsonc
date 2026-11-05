@@ -1,0 +1,35 @@
+{
+  // Allowance — Cloudflare Workers configuration.
+  // Secrets (set with `wrangler secret put`, never committed):
+  //   PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, MANDATE_SIGNING_KEY, PAYPAL_WEBHOOK_ID (optional)
+  // The Cloudflare account is taken from CLOUDFLARE_ACCOUNT_ID at deploy time.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "allowance",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "ai": { "binding": "AI" },
+  "durable_objects": {
+    "bindings": [
+      { "name": "MANDATES", "class_name": "MandateDO" },
+      { "name": "QUOTA", "class_name": "QuotaDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["MandateDO", "QuotaDO"] }
+  ],
+  "vars": {
+    "PAYPAL_API_BASE": "https://api-m.sandbox.paypal.com",
+    "PAYPAL_SDK_URL": "https://www.sandbox.paypal.com/web-sdk/v6/core",
+    "AI_MODEL": "@cf/mistralai/mistral-small-3.1-24b-instruct",
+    "AI_FALLBACK_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
+    "AI_DAILY_NEURON_BUDGET": "9000"
+  },
+  "observability": { "enabled": true }
+}

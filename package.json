@@ -1,0 +1,23 @@
+{
+  "name": "allowance",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Allowance - give your AI agent an allowance, not your wallet. PayPal authorization holds + Workers AI agent + AG Grid ledger.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "vendor": "node scripts/copy-vendor.mjs",
+    "dev": "npm run vendor && wrangler dev",
+    "deploy": "npm run vendor && wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261104.1",
+    "ag-charts-community": "^14.3.0",
+    "ag-grid-community": "^36.3.0",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.157.0"
+  }
+}
