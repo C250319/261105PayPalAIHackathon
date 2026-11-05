@@ -5,3 +5,6 @@ public/vendor/
 *.log
 .DS_Store
 /tmp/
+e2e-output/
+shots-output/
+video-output/

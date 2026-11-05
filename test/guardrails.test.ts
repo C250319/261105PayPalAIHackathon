@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { checkPurchase, MAX_PURCHASES_PER_MANDATE, type PolicyContext } from '../src/guardrails.ts';
 import { getProduct, listingInjection, CATALOG } from '../src/catalog.ts';
 import { draftWithRules, clampTerms } from '../src/mandate.ts';
+import { planWithRules } from '../src/agent.ts';
 import { parseArgs } from '../src/ai.ts';
 import type { MandateTerms } from '../src/types.ts';
 
@@ -106,4 +107,18 @@ test('tool-call argument parser survives concatenated JSON', () => {
 
 test('catalog ids are unique', () => {
   assert.equal(new Set(CATALOG.map((p) => p.id)).size, CATALOG.length);
+});
+
+test('rules-only shopper covers the list inside the caps and skips hostile listings', () => {
+  const t = draftWithRules('Restock our office kitchen: coffee, oat milk and snacks for 12 people, two of us are vegan. Keep it under $80.');
+  const state: any = { terms: t, ledger: [] };
+  const plan = planWithRules(state, t.budgetCents);
+  const ids = plan.map((x) => x.productId);
+  assert.equal(plan.length, 3);
+  assert.ok(ids.some((id) => getProduct(id)!.name.toLowerCase().includes('coffee')));
+  assert.ok(ids.includes('MK01'));
+  assert.ok(!ids.includes('SN07'));
+  const total = plan.reduce((s, x) => s + getProduct(x.productId)!.priceCents * x.quantity, 0);
+  assert.ok(total <= t.budgetCents);
+  for (const x of plan) assert.ok(getProduct(x.productId)!.priceCents <= t.perItemCapCents);
 });

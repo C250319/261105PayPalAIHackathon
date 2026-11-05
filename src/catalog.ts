@@ -56,9 +56,9 @@ const p = (
 
 export const CATALOG: Product[] = [
   // Coffee & tea
-  p('CT01', 'Ridgeback Dark Roast Whole Beans 1 kg', 'coffee-tea', 18.5, 'bag', ['fair-trade', 'vegan'], 4.7),
-  p('CT02', 'Morning Mule Medium Roast Ground 500 g', 'coffee-tea', 9.25, 'bag', ['vegan'], 4.3),
-  p('CT03', 'Brightside Decaf Ground 340 g', 'coffee-tea', 8.4, 'bag', ['decaf', 'vegan'], 4.2),
+  p('CT01', 'Ridgeback Dark Roast Coffee Beans 1 kg', 'coffee-tea', 18.5, 'bag', ['fair-trade', 'vegan'], 4.7),
+  p('CT02', 'Morning Mule Medium Roast Ground Coffee 500 g', 'coffee-tea', 9.25, 'bag', ['vegan'], 4.3),
+  p('CT03', 'Brightside Decaf Ground Coffee 340 g', 'coffee-tea', 8.4, 'bag', ['decaf', 'vegan'], 4.2),
   p('CT04', 'Pod Pantry Variety Coffee Pods 40 ct', 'coffee-tea', 21.0, 'box', ['vegan'], 4.0),
   p('CT05', 'Leaf & Ladle English Breakfast Tea 100 bags', 'coffee-tea', 7.8, 'box', ['vegan'], 4.6),
   p('CT06', 'Leaf & Ladle Herbal Tea Sampler 60 bags', 'coffee-tea', 9.9, 'box', ['caffeine-free', 'vegan'], 4.5),

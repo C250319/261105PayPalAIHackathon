@@ -95,6 +95,8 @@ export interface MandateState {
   status: MandateStatus;
   terms: MandateTerms;
   draftedBy: string; // model id or 'rules'
+  /** Rules-only mode chosen by the user (same path the app takes when the AI quota is used up). */
+  forceRules?: boolean;
   paypal: {
     orderId?: string;
     orderStatus?: string;
@@ -113,6 +115,9 @@ export interface MandateState {
     turns: number;
     done: boolean;
     summary?: string;
+    /** Grounded recap written when the mandate closes (AI over ledger facts, or a template). */
+    recap?: string;
+    recapBy?: string;
     /** finish() proposed in the same turn as purchases; accepted later only if every one of them went through. */
     pendingFinish?: { summary: string; turn: number };
     mode?: 'ai' | 'rules';

@@ -37,7 +37,7 @@ const api = {
   config: () => req('GET', '/api/config'),
   quota: () => req('GET', '/api/quota'),
   catalog: () => req('GET', '/api/catalog'),
-  create: (errand) => req('POST', '/api/mandates', { errand }),
+  create: (errand, mode) => req('POST', '/api/mandates', mode ? { errand, mode } : { errand }),
   get: (id) => req('GET', `/api/mandates/${id}`),
   patch: (id, patch) => req('PATCH', `/api/mandates/${id}`, patch),
   order: (id) => req('POST', `/api/mandates/${id}/order`),
@@ -304,20 +304,27 @@ function initHistoryGrid() {
     tooltipShowDelay: 250,
     defaultColDef: { sortable: true, resizable: true, filter: true, floatingFilter: false, suppressHeaderMenuButton: true },
     columnDefs: [
-      { headerName: 'Created', field: 'createdAt', width: 150, sort: 'desc', valueFormatter: (p) => (p.node.rowPinned ? '' : fmtDateTime(p.value)), filter: false },
-      { headerName: 'Mandate', field: 'title', minWidth: 190, flex: 1.4, cellRenderer: (p) => `<div class="cell-item"><b>${esc(p.value)}</b><small>${p.node.rowPinned ? '' : `Drafted by ${esc(String(p.data.draftedBy || '').split('/').pop())}`}</small></div>` },
-      { headerName: 'Status', field: 'status', width: 110, cellRenderer: (p) => (p.node.rowPinned ? '' : badge(p.value, p.value)) },
-      { headerName: 'Hold', field: 'authorizedCents', width: 100, cellRenderer: (p) => `<span class="amount">${usd(p.value)}</span>`, filter: 'agNumberColumnFilter' },
-      { headerName: 'Spent', field: 'netSpentCents', width: 100, cellRenderer: (p) => `<span class="amount">${usd(p.value)}</span>`, filter: 'agNumberColumnFilter' },
-      { headerName: 'Released', field: 'releasedCents', width: 104, cellRenderer: (p) => `<span class="amount">${usd(p.value)}</span>` },
-      { headerName: 'Buys', field: 'purchases', width: 80 },
-      { headerName: 'Blocked', field: 'blocked', width: 92 },
-      { headerName: 'PayPal authorization', field: 'authorizationId', width: 200, cellRenderer: (p) => (p.value ? `<div class="cell-two"><span class="mono">${esc(p.value)}</span><span class="line2">${esc(p.data.authorizationStatus || '')}</span></div>` : '<span class="muted">—</span>') },
-      { headerName: "Agent's summary (AI)", field: 'agentSummary', minWidth: 260, flex: 2, cellRenderer: (p) => (p.value ? `<span class="reason">${esc(p.value)}</span>` : '<span class="muted">—</span>'), tooltipField: 'agentSummary' },
+      { headerName: 'Created', field: 'createdAt', width: 128, sort: 'desc', valueFormatter: (p) => (p.node.rowPinned ? '' : fmtDateTime(p.value)), filter: false },
+      { headerName: 'Mandate', field: 'title', minWidth: 170, flex: 1.1, cellRenderer: (p) => `<div class="cell-item"><b>${esc(p.value)}</b><small>${p.node.rowPinned ? '' : `Drafted by ${esc(String(p.data.draftedBy || '').split('/').pop())}`}</small></div>` },
+      { headerName: 'Status', field: 'status', width: 96, cellRenderer: (p) => (p.node.rowPinned ? '' : badge(p.value, p.value)) },
+      { headerName: 'Hold', field: 'authorizedCents', width: 90, cellRenderer: (p) => `<span class="amount">${usd(p.value)}</span>`, filter: 'agNumberColumnFilter' },
+      { headerName: 'Spent', field: 'netSpentCents', width: 90, cellRenderer: (p) => `<span class="amount">${usd(p.value)}</span>`, filter: 'agNumberColumnFilter' },
+      { headerName: 'Released', field: 'releasedCents', width: 96, cellRenderer: (p) => `<span class="amount">${usd(p.value)}</span>` },
+      { headerName: 'Buys', field: 'purchases', width: 72 },
+      { headerName: 'Blocked', field: 'blocked', width: 84 },
+      { headerName: 'PayPal authorization', field: 'authorizationId', width: 176, cellRenderer: (p) => (p.value ? `<div class="cell-two"><span class="mono">${esc(p.value)}</span><span class="line2">${esc(p.data.authorizationStatus || '')}</span></div>` : '<span class="muted">—</span>') },
+      {
+        headerName: 'AI recap',
+        field: 'agentSummary',
+        minWidth: 250,
+        flex: 2.4,
+        cellRenderer: (p) => (p.value ? `<span class="reason" title="${esc(p.data.summaryBy || '')}">${esc(p.value)}</span>` : '<span class="muted">—</span>'),
+        tooltipField: 'agentSummary',
+      },
       {
         headerName: '',
         colId: 'open',
-        width: 92,
+        width: 80,
         pinned: 'right',
         sortable: false,
         filter: false,
@@ -346,17 +353,17 @@ function initStoreGrid(items) {
     defaultColDef: { sortable: true, resizable: true, filter: true, floatingFilter: true, suppressHeaderMenuButton: true },
     columnDefs: [
       { headerName: 'ID', field: 'id', width: 92, cellClass: 'mono', pinned: 'left' },
-      { headerName: 'Product', field: 'name', minWidth: 260, flex: 2, tooltipField: 'name' },
-      { headerName: 'Category', field: 'categoryLabel', width: 170 },
+      { headerName: 'Product', field: 'name', minWidth: 220, flex: 2, tooltipField: 'name' },
+      { headerName: 'Category', field: 'categoryLabel', width: 150 },
       { headerName: 'Price', field: 'price', width: 110, filter: 'agNumberColumnFilter', valueFormatter: (p) => `$${Number(p.value).toFixed(2)}`, cellClass: 'amount' },
-      { headerName: 'Unit', field: 'unit', width: 90 },
-      { headerName: 'Tags', field: 'tags', width: 170, valueFormatter: (p) => (p.value || []).join(', ') },
-      { headerName: 'Rating', field: 'rating', width: 100, filter: 'agNumberColumnFilter', cellRenderer: (p) => `<span class="stars">★</span> ${Number(p.value).toFixed(1)}` },
-      { headerName: 'Agent can buy?', colId: 'buyable', width: 140, valueGetter: (p) => (p.data.restricted ? 'Never' : p.data.injection ? 'Blocked' : 'If mandate allows'), cellRenderer: (p) => (p.value === 'Never' ? badge('blocked', 'Never') : p.value === 'Blocked' ? badge('warn', 'Blocked') : badge('ok', 'If allowed')) },
+      { headerName: 'Unit', field: 'unit', width: 76 },
+      { headerName: 'Tags', field: 'tags', width: 150, valueFormatter: (p) => (p.value || []).join(', ') },
+      { headerName: 'Rating', field: 'rating', width: 90, filter: 'agNumberColumnFilter', cellRenderer: (p) => `<span class="stars">★</span> ${Number(p.value).toFixed(1)}` },
+      { headerName: 'Agent can buy?', colId: 'buyable', width: 130, valueGetter: (p) => (p.data.restricted ? 'Never' : p.data.injection ? 'Blocked' : 'If mandate allows'), cellRenderer: (p) => (p.value === 'Never' ? badge('blocked', 'Never') : p.value === 'Blocked' ? badge('warn', 'Blocked') : badge('ok', 'If allowed')) },
       {
         headerName: 'Seller listing text (untrusted)',
         field: 'listing',
-        minWidth: 300,
+        minWidth: 280,
         flex: 2.4,
         tooltipField: 'listing',
         cellRenderer: (p) => (p.value ? `<span class="${p.data.injection ? 'inj' : ''}">${p.data.injection ? '⚠ Prompt injection: ' : ''}</span><span class="reason">${esc(p.value)}</span>` : '<span class="muted">—</span>'),
@@ -497,7 +504,8 @@ function renderAgent() {
   const label = runBtn.querySelector('.btn-label');
   if (!M || M.status === 'draft') label.textContent = 'Start shopping';
   else if (M.status === 'closed') label.textContent = 'Mandate closed';
-  else if (M.agent.done) label.textContent = 'Errand done ✓';
+  else if (M.agent.done && !busy) label.textContent = 'Errand done ✓';
+  else if (M.agent.done) label.textContent = 'Paying through PayPal…';
   else label.textContent = M.agent.turns ? 'Continue shopping' : 'Start shopping';
   runBtn.disabled = !active || busy || M.agent.done;
   const red = $('#btn-redteam');
@@ -515,7 +523,8 @@ function renderAgent() {
         ? 'Errand done. Release the unused money, refund a line, or give the agent a new instruction.'
         : 'The agent buys on its own, inside the hold.';
   const model = M?.agent?.model || cfg?.aiModel || '';
-  $('#agent-model').textContent = M?.agent?.mode === 'rules' ? 'Rules-only mode (AI budget used up)' : model ? `Workers AI · ${model.split('/').pop()}` : '';
+  $('#agent-model').textContent =
+    M?.forceRules ? 'Rules-only mode (no AI)' : M?.agent?.mode === 'rules' ? 'Rules-only mode (AI budget used up)' : model ? `Workers AI · ${model.split('/').pop()}` : '';
   renderConsole();
 }
 
@@ -573,7 +582,7 @@ function renderLedger() {
             item: `Net spent ${usd(t.netSpentCents)} of ${usd(t.authorizedCents)}`,
             sub: `${t.purchases} captured · ${t.blocked} blocked · ${t.flagged} flagged${t.refundedCents ? ` · ${usd(t.refundedCents)} refunded` : ''}`,
             amountCents: t.netSpentCents,
-            reasonText: M.agent.summary || '',
+            reasonText: M.agent.recap || M.agent.summary || '',
             paypalText: M.status === 'closed' ? `Released ${usd(t.releasedCents)}` : `Left on hold ${usd(t.remainingCents)}`,
           },
         ]
@@ -596,7 +605,7 @@ async function draft() {
   const btn = $('#btn-draft');
   setLoading(btn, true);
   try {
-    M = await api.create(errand);
+    M = await api.create(errand, $('#rules-mode').checked ? 'rules' : undefined);
     remember(M.id);
     setHash(M.id);
     render();
@@ -821,7 +830,8 @@ async function loadStore() {
   if (storeLoaded) return;
   storeLoaded = true;
   try {
-    initStoreGrid(await api.catalog());
+    const risk = (x) => (x.injection ? 3 : x.restricted ? 2 : x.featured ? 1 : 0);
+    initStoreGrid((await api.catalog()).sort((a, b) => risk(b) - risk(a)));
   } catch (e) {
     storeLoaded = false;
     toast(e.message, 'error');
@@ -909,6 +919,9 @@ async function boot() {
   initDonut();
 
   $('#btn-draft').addEventListener('click', draft);
+  $('#rules-mode').addEventListener('change', (e) => {
+    $('#btn-draft .btn-label').textContent = e.target.checked ? 'Draft mandate (rules only)' : 'Draft mandate with AI';
+  });
   for (const c of $$('#presets .chip')) c.addEventListener('click', () => ($('#errand').value = c.dataset.errand));
   $('#f-title').addEventListener('input', (e) => schedulePatch({ title: e.target.value }));
   $('#f-list').addEventListener('change', (e) => schedulePatch({ shoppingList: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) }));

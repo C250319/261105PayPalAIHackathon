@@ -127,7 +127,8 @@ export async function draftWithAi(env: Env, errand: string): Promise<{ terms: Ma
   return { terms, by: res.model };
 }
 
-export async function draftMandate(env: Env, errand: string): Promise<{ terms: MandateTerms; by: string; aiError?: string }> {
+export async function draftMandate(env: Env, errand: string, forceRules = false): Promise<{ terms: MandateTerms; by: string; aiError?: string }> {
+  if (forceRules) return { terms: draftWithRules(errand), by: 'rules', aiError: 'forced' };
   try {
     return await draftWithAi(env, errand);
   } catch (e) {

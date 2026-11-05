@@ -3,7 +3,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { getProduct } from './catalog.ts';
 import { AiQuotaError, AiUnavailableError } from './ai.ts';
-import { agentTurn, auditLines, initialMessages, planWithRules, toolResultFor } from './agent.ts';
+import { agentTurn, auditLines, initialMessages, planWithRules, recapWithAi, recapWithRules, toolResultFor } from './agent.ts';
 import { checkPurchase, usd, type PolicyContext } from './guardrails.ts';
 import { signMandate, verifyMandate, clampTerms } from './mandate.ts';
 import * as paypal from './paypal.ts';
@@ -63,10 +63,11 @@ export function publicView(s: MandateState) {
     status: s.status,
     terms: s.terms,
     draftedBy: s.draftedBy,
+    forceRules: !!s.forceRules,
     paypal: s.paypal,
     signature: s.signature ? s.signature.slice(0, 16) : null,
     ledger: s.ledger,
-    agent: { turns: s.agent.turns, done: s.agent.done, summary: s.agent.summary, mode: s.agent.mode, model: s.agent.model },
+    agent: { turns: s.agent.turns, done: s.agent.done, summary: s.agent.summary, recap: s.agent.recap, recapBy: s.agent.recapBy, mode: s.agent.mode, model: s.agent.model },
     events: s.events.slice(-150),
     totals: totals(s),
   };
@@ -115,7 +116,7 @@ export class MandateDO extends DurableObject<Env> {
 
   // ---- lifecycle -------------------------------------------------------------------------
 
-  async create(id: string, terms: MandateTerms, draftedBy: string, aiError?: string): Promise<PublicMandate> {
+  async create(id: string, terms: MandateTerms, draftedBy: string, aiError?: string, forceRules = false): Promise<PublicMandate> {
     return this.exclusive(async () => {
       const existing = await this.ctx.storage.get<MandateState>('s');
       if (existing) throw new AppError('Mandate already exists', 409, 'exists');
@@ -127,6 +128,7 @@ export class MandateDO extends DurableObject<Env> {
         status: 'draft',
         terms,
         draftedBy,
+        forceRules,
         paypal: {},
         ledger: [],
         agent: { messages: [], turns: 0, done: false },
@@ -135,9 +137,11 @@ export class MandateDO extends DurableObject<Env> {
       if (draftedBy === 'rules') {
         this.event(
           'system',
-          aiError === 'quota'
-            ? "Today's free Workers AI budget is used up, so the mandate was drafted by the rules-only parser. Review it before approving."
-            : 'AI drafting was unavailable, so the rules-only parser drafted this mandate. Review it before approving.',
+          aiError === 'forced'
+            ? 'Rules-only mode (no AI): the mandate was drafted by a keyword parser and a deterministic shopper will run. This is exactly what happens when the daily free AI quota is used up.'
+            : aiError === 'quota'
+              ? "Today's free Workers AI budget is used up, so the mandate was drafted by the rules-only parser. Review it before approving."
+              : 'AI drafting was unavailable, so the rules-only parser drafted this mandate. Review it before approving.',
         );
       } else {
         this.event('agent', `Drafted a mandate from your errand with ${draftedBy}. Review the limits, then approve the hold with PayPal.`);
@@ -163,7 +167,8 @@ export class MandateDO extends DurableObject<Env> {
       authorizationId: s.paypal.authorizationId || null,
       authorizationStatus: s.paypal.authorizationStatus || null,
       ...t,
-      agentSummary: s.agent.summary || null,
+      agentSummary: s.agent.recap || s.agent.summary || null,
+      summaryBy: s.agent.recap ? s.agent.recapBy || null : s.agent.model || null,
       draftedBy: s.draftedBy,
     };
   }
@@ -315,6 +320,7 @@ export class MandateDO extends DurableObject<Env> {
       let finishSummary: string | null = null;
       let text = '';
       try {
+        if (s.forceRules) throw new AiUnavailableError('rules-only mode chosen');
         const res = await agentTurn(this.env, s.agent.messages);
         s.agent.mode = 'ai';
         s.agent.model = res.model;
@@ -339,9 +345,11 @@ export class MandateDO extends DurableObject<Env> {
         s.agent.model = 'rules';
         this.event(
           'system',
-          e instanceof AiQuotaError
-            ? "Today's free Workers AI budget (10,000 neurons) is used up. Switching to the rules-only shopper; the same guardrails and PayPal flow still apply. Full AI returns at 00:00 UTC."
-            : 'Workers AI did not respond, so the rules-only shopper takes this turn. Guardrails and PayPal still apply.',
+          s.forceRules
+            ? 'Rules-only shopper: one best-value line per allowed category, through the same firewall and PayPal captures.'
+            : e instanceof AiQuotaError
+              ? "Today's free Workers AI budget (10,000 neurons) is used up. Switching to the rules-only shopper; the same guardrails and PayPal flow still apply. Full AI returns at 00:00 UTC."
+              : 'Workers AI did not respond, so the rules-only shopper takes this turn. Guardrails and PayPal still apply.',
         );
         const plan = turn === 1 || !s.ledger.some((r) => r.kind === 'purchase') ? planWithRules(s, totals(s).remainingCents) : [];
         buys = plan.map((p) => ({ id: `rules${turn}${Math.random().toString(36).slice(2, 6)}`, ...p }));
@@ -487,6 +495,8 @@ export class MandateDO extends DurableObject<Env> {
         row.status = 'captured';
         row.paypal = { id: res.data.id, status: res.data.status, debugId: res.debugId, invoiceId };
         s.paypal.authorizationStatus = 'PARTIALLY_CAPTURED';
+        const hold = s.ledger.find((r) => r.kind === 'hold');
+        if (hold?.paypal) hold.paypal.status = 'PARTIALLY_CAPTURED';
         this.event('paypal', `Captured ${usd(row.amountCents)} for ${row.item} (capture ${res.data.id}, ${res.data.status}).`, row.id);
       } catch (e) {
         const pe = e as paypal.PayPalError;
@@ -542,6 +552,8 @@ export class MandateDO extends DurableObject<Env> {
       s.paypal.authorizationStatus = 'VOIDED';
       s.paypal.voidedAt = nowIso();
       s.status = 'closed';
+      const hold = s.ledger.find((r) => r.kind === 'hold');
+      if (hold?.paypal) hold.paypal.status = 'VOIDED';
       const n = this.nextRowNumber();
       s.ledger.push({
         id: `L${n}`,
@@ -555,6 +567,18 @@ export class MandateDO extends DurableObject<Env> {
         decidedBy: 'human',
       });
       this.event('paypal', `Released ${usd(t.remainingCents)} back to you: authorization ${s.paypal.authorizationId} voided. Final spend ${usd(t.netSpentCents)}.`);
+      const closing = totals(s);
+      try {
+        if (s.forceRules) throw new AiUnavailableError('rules-only mode chosen');
+        const r = await recapWithAi(this.env, s, closing);
+        s.agent.recap = r.text || recapWithRules(s, closing);
+        s.agent.recapBy = r.model;
+      } catch (e) {
+        if (!(e instanceof AiQuotaError || e instanceof AiUnavailableError)) console.error('recap failed', String(e));
+        s.agent.recap = recapWithRules(s, closing);
+        s.agent.recapBy = 'rules';
+      }
+      this.event('agent', `Recap: ${s.agent.recap}`);
       await this.save();
       return publicView(s);
     });
@@ -571,6 +595,8 @@ export class MandateDO extends DurableObject<Env> {
       if (auth) {
         s.paypal.authorizationStatus = auth.status;
         s.paypal.authorizationExpiresAt = auth.expiration_time || s.paypal.authorizationExpiresAt;
+        const hold = s.ledger.find((r) => r.kind === 'hold');
+        if (hold?.paypal) hold.paypal.status = auth.status;
       }
       s.paypal.orderStatus = res.data?.status;
       for (const c of pu.captures || []) {
