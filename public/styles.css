@@ -245,10 +245,10 @@ paypal-button { display: block; width: 100%; --paypal-button-border-radius: 11px
 .mini.no { color: var(--bad); }
 .wh { color: var(--ok); font-weight: 700; margin-left: 4px; font-size: 11px; }
 .ag-row.row-blocked { --ag-row-hover-color: #fff4f4; }
-.ag-pinned-left-cols-container .ag-row.row-blocked .ag-cell:first-child { box-shadow: inset 3px 0 0 var(--bad); }
-.ag-pinned-left-cols-container .ag-row.row-captured .ag-cell:first-child { box-shadow: inset 3px 0 0 var(--ok); }
-.ag-pinned-left-cols-container .ag-row.row-needs_approval .ag-cell:first-child { box-shadow: inset 3px 0 0 #f0a020; }
-.ag-pinned-left-cols-container .ag-row.row-system .ag-cell:first-child { box-shadow: inset 3px 0 0 var(--info); }
+.ag-row.row-blocked .ag-cell[col-id="n"] { box-shadow: inset 4px 0 0 var(--bad); }
+.ag-row.row-captured .ag-cell[col-id="n"] { box-shadow: inset 4px 0 0 var(--ok); }
+.ag-row.row-needs_approval .ag-cell[col-id="n"] { box-shadow: inset 4px 0 0 #f0a020; }
+.ag-row.row-system .ag-cell[col-id="n"] { box-shadow: inset 4px 0 0 var(--info); }
 .ag-row-pinned { font-weight: 700; }
 .inj { color: var(--bad); font-weight: 700; }
 .stars { color: #c98a00; letter-spacing: .5px; }

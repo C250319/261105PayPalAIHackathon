@@ -504,8 +504,8 @@ function renderAgent() {
   const label = runBtn.querySelector('.btn-label');
   if (!M || M.status === 'draft') label.textContent = 'Start shopping';
   else if (M.status === 'closed') label.textContent = 'Mandate closed';
-  else if (M.agent.done && !busy) label.textContent = 'Errand done ✓';
-  else if (M.agent.done) label.textContent = 'Paying through PayPal…';
+  else if (busy) label.textContent = 'Agent working…';
+  else if (M.agent.done) label.textContent = 'Errand done ✓';
   else label.textContent = M.agent.turns ? 'Continue shopping' : 'Start shopping';
   runBtn.disabled = !active || busy || M.agent.done;
   const red = $('#btn-redteam');
