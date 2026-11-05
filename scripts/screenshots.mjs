@@ -13,8 +13,21 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 2, locale: 'en-US' });
 const page = await context.newPage();
-const full = (name) => page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
-const meta = {};
+const meta = { boxes: {} };
+// Full-page screenshot plus the page-relative boxes of the main cards (used for cropping).
+const full = async (name) => {
+  await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
+  meta.boxes[name] = await page.evaluate(() => {
+    const out = {};
+    for (const sel of ['.hero', '#step1', '#step2', '#step3', '#meter', '#ledger-card', '#view-history .card', '#view-store .card', '.topbar']) {
+      const el = document.querySelector(sel);
+      if (!el || el.offsetParent === null) continue;
+      const r = el.getBoundingClientRect();
+      out[sel] = { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
+    }
+    return out;
+  });
+};
 
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await sleep(800);

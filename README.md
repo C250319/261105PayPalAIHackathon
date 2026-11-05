@@ -8,6 +8,8 @@ Allowance lets an AI agent shop for you while a **PayPal authorization hold** ca
 
 **Devpost text:** [SUBMISSION.md](SUBMISSION.md) · **License:** [MIT](LICENSE)
 
+![Agent ledger in AG Grid: AI reasoning, policy firewall, AI auditor and PayPal IDs for every attempt](docs/gallery-3-ledger.png)
+
 ---
 
 ## The problem
@@ -75,6 +77,13 @@ AG Grid Community (v36, MIT, no license key) is the core of the UI; AG Charts Co
 - **Agent ledger** – one row per attempt with custom cell renderers: item + category chip, struck-through amounts for blocked lines, status badges, the AI agent's reasoning, the **policy firewall** verdict (hover for all 12 checks), the **AI auditor** verdict and note, PayPal capture/authorization/refund IDs, and in-row **Refund / Allow / Deny** buttons. Pinned totals row with the AI recap, quick filter, status filter (external filter), CSV export for accounting, row class rules and cell flashing when PayPal status changes, auto-height layout and a custom Quartz theme via the Theming API.
 - **Mandates** – every allowance in this browser with hold, spent, released, blocked counts, PayPal authorization state and the AI recap, plus a pinned totals row.
 - **Store catalog** – the demo store with floating filters, number filters and a highlighted "prompt injection" flag on hostile listings.
+
+## Screenshots
+
+| | |
+| --- | --- |
+| ![Workspace](docs/gallery-1-workspace.png) Workspace after an errand: signed mandate, PayPal-backed meter, agent console | ![PayPal approval](docs/gallery-2-paypal-approval.png) Approving the $80 hold in the PayPal sandbox popup |
+| ![Ledger](docs/gallery-3-ledger.png) AG Grid ledger: captures, red-team blocks, release, AI recap | ![Grids](docs/gallery-4-mandates-and-store.png) Mandates history with AI recaps, and the hostile demo store |
 
 ## Safety design (defense in depth)
 
