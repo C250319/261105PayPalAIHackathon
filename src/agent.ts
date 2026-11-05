@@ -155,26 +155,83 @@ export async function auditLines(env: Env, state: MandateState, rows: LedgerRow[
 
 // ---- Rules-only fallback planner --------------------------------------------------------
 
-/** Deterministic shopper used when AI is unavailable: one good-value line per allowed category. */
+/**
+ * Deterministic shopper used when AI is unavailable: one line per shopping-list item (keyword
+ * match on name/tags), then one best-value line for any allowed category still uncovered.
+ */
 export function planWithRules(state: MandateState, remainingCents: number): { productId: string; quantity: number; reason: string }[] {
   const t = state.terms;
   const wantsVegan = /vegan/i.test(t.errand + ' ' + t.notes.join(' '));
   const already = new Set(state.ledger.filter((r) => r.productId && r.status !== 'blocked').map((r) => r.productId));
   const plan: { productId: string; quantity: number; reason: string }[] = [];
+  const coveredCats = new Set<string>();
   let left = remainingCents;
+  const eligible = (p: Product) =>
+    t.allowedCategories.includes(p.category) && !already.has(p.id) && !plan.some((x) => x.productId === p.id) && !listingInjection(p) && p.priceCents <= t.perItemCapCents && p.priceCents <= left;
+  const take = (p: Product, why: string) => {
+    plan.push({ productId: p.id, quantity: 1, reason: why });
+    coveredCats.add(p.category);
+    left -= p.priceCents;
+  };
+  for (const item of t.shoppingList || []) {
+    const words = (item.toLowerCase().match(/[a-z]{3,}/g) || []).filter((w) => !STOP.includes(w));
+    if (!words.length) continue;
+    const best = CATALOG.filter((p) => eligible(p) && words.some((w) => text(p).includes(w))).sort(
+      (a, b) => score(b, wantsVegan, words) - score(a, wantsVegan, words),
+    )[0];
+    if (best) take(best, `Best-value match for "${item}" within the caps (rules mode).`);
+  }
   for (const cat of t.allowedCategories) {
-    const candidates = CATALOG.filter(
-      (p: Product) =>
-        p.category === cat && !already.has(p.id) && !listingInjection(p) && p.priceCents <= t.perItemCapCents && p.priceCents <= left,
-    ).sort((a, b) => score(b, wantsVegan) - score(a, wantsVegan));
-    const pick = candidates[0];
-    if (!pick) continue;
-    plan.push({ productId: pick.id, quantity: 1, reason: `Best-rated ${CATEGORIES[cat].label.toLowerCase()} option within the caps (rules mode).` });
-    left -= pick.priceCents;
+    if (coveredCats.has(cat)) continue;
+    const best = CATALOG.filter((p) => p.category === cat && eligible(p)).sort((a, b) => score(b, wantsVegan, []) - score(a, wantsVegan, []))[0];
+    if (best) take(best, `Best-rated ${CATEGORIES[cat].label.toLowerCase()} option within the caps (rules mode).`);
   }
   return plan;
 }
 
-function score(p: Product, vegan: boolean) {
-  return p.rating * 10 - p.priceCents / 250 + (vegan && p.tags.includes('vegan') ? 4 : 0);
+const STOP = ['and', 'for', 'the', 'with', 'some', 'vegan', 'supplies', 'more'];
+const text = (p: Product) => `${p.name} ${p.tags.join(' ')}`.toLowerCase();
+
+function score(p: Product, vegan: boolean, words: string[]) {
+  const matches = words.filter((w) => text(p).includes(w)).length;
+  return matches * 10 + p.rating * 10 - p.priceCents / 250 + (vegan && p.tags.includes('vegan') ? 4 : 0);
 }
+
+// ---- Closing recap ----------------------------------------------------------------------
+
+function ledgerFacts(state: MandateState) {
+  const rows = state.ledger.filter((r) => r.kind === 'purchase');
+  return {
+    bought: rows.filter((r) => r.status === 'captured').map((r) => `${r.item} x${r.quantity} (${usd(r.amountCents)})`),
+    refunded: rows.filter((r) => r.status === 'refunded').map((r) => `${r.item} (${usd(r.amountCents)})`),
+    blocked: rows.filter((r) => r.status === 'blocked').map((r) => `${r.item}: ${r.policy?.rule}${r.redteam ? ' (red-team drill)' : ''}`),
+    declined_by_human: rows.filter((r) => r.status === 'declined').map((r) => r.item),
+  };
+}
+
+export function recapWithRules(state: MandateState, t: { netSpentCents: number; authorizedCents: number; releasedCents: number; blocked: number }): string {
+  const f = ledgerFacts(state);
+  const bought = f.bought.length ? `Bought ${f.bought.length} item(s) for ${usd(t.netSpentCents)}` : 'Bought nothing';
+  return `${bought} of the ${usd(t.authorizedCents)} hold; ${t.blocked} attempt(s) blocked by the firewall; ${usd(t.releasedCents)} released back to the buyer.`;
+}
+
+/** One grounded AI call over the ledger facts; temperature 0 and facts-only to avoid invention. */
+export async function recapWithAi(env: Env, state: MandateState, t: { netSpentCents: number; authorizedCents: number; releasedCents: number; blocked: number }) {
+  const res = await chat(env, {
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Write a recap of an AI purchasing agent\'s errand for the account owner: max 2 sentences, max 45 words, plain English. Use ONLY the facts given; mention what was bought, what the firewall blocked (group similar items), and how much was released. No greetings.',
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({ errand: state.terms.errand, hold: usd(t.authorizedCents), net_spent: usd(t.netSpentCents), released: usd(t.releasedCents), ...ledgerFacts(state) }),
+      },
+    ],
+    maxTokens: 120,
+    temperature: 0,
+  });
+  return { text: res.content.replace(/\s+/g, ' ').trim().slice(0, 400), model: res.model };
+}
+

@@ -5,37 +5,13 @@
 //   BASE_URL=https://allowance.<subdomain>.workers.dev \
 //   PAYPAL_SANDBOX_BUYER_EMAIL=... PAYPAL_SANDBOX_BUYER_PASSWORD=... npm run e2e
 import { mkdirSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { approveInPayPalPopup, BASE, buyer, chromium, waitAgentIdle } from './lib/browser.mjs';
 
-// Playwright is resolved with require() so a globally installed copy works via NODE_PATH.
-const { chromium } = createRequire(import.meta.url)('playwright');
-
-const BASE = process.env.BASE_URL || 'https://allowance.261105cn.workers.dev';
-const EMAIL = process.env.PAYPAL_SANDBOX_BUYER_EMAIL;
-const PASSWORD = process.env.PAYPAL_SANDBOX_BUYER_PASSWORD;
 const OUT = process.env.E2E_OUT || 'e2e-output';
-if (!EMAIL || !PASSWORD) throw new Error('Set PAYPAL_SANDBOX_BUYER_EMAIL and PAYPAL_SANDBOX_BUYER_PASSWORD');
+buyer();
 mkdirSync(OUT, { recursive: true });
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
-
-export async function approveInPayPalPopup(popup, { email = EMAIL, password = PASSWORD, shot } = {}) {
-  await popup.waitForLoadState('domcontentloaded');
-  const emailBox = popup.locator('#email, #login_email, input[name="login_email"]').first();
-  await emailBox.waitFor({ state: 'visible', timeout: 60000 });
-  await emailBox.fill(email);
-  const next = popup.locator('#btnNext');
-  if (await next.isVisible().catch(() => false)) await next.click();
-  const pw = popup.locator('#password, input[name="login_password"]').first();
-  await pw.waitFor({ state: 'visible', timeout: 60000 });
-  await pw.fill(password);
-  await popup.locator('#btnLogin, button[name="btnLogin"]').first().click();
-  const submit = popup.locator('#payment-submit-btn, button[data-id="payment-submit-btn"]').first();
-  await submit.waitFor({ state: 'visible', timeout: 90000 });
-  await popup.waitForTimeout(1200);
-  if (shot) await shot(popup);
-  await submit.click();
-}
 
 async function main() {
   const browser = await chromium.launch();
@@ -47,6 +23,7 @@ async function main() {
   log('open', BASE);
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.locator('#presets .chip').first().click();
+  if (process.env.E2E_RULES) await page.locator('#rules-mode').check(); // exercise the no-AI fallback path
   await page.locator('#btn-draft').click();
   await page.waitForFunction(() => document.querySelector('#f-budget')?.value !== '', null, { timeout: 60000 });
   const mandateId = await page.evaluate(() => (location.hash.match(/m=([a-f0-9]{32})/) || [])[1]);
@@ -57,16 +34,13 @@ async function main() {
   await btn.waitFor({ state: 'visible', timeout: 60000 });
   const [popup] = await Promise.all([context.waitForEvent('page', { timeout: 60000 }), btn.click()]);
   log('PayPal popup opened');
-  await approveInPayPalPopup(popup, { shot: (p) => p.screenshot({ path: `${OUT}/02-paypal-review.png` }) });
+  await approveInPayPalPopup(popup, { beforeSubmit: (p) => p.screenshot({ path: `${OUT}/02-paypal-review.png` }) });
   await page.waitForFunction(() => document.querySelector('#m-status')?.textContent?.includes('Hold active'), null, { timeout: 90000 });
   log('hold active:', await page.locator('#m-auth').textContent());
   await page.screenshot({ path: `${OUT}/03-hold.png` });
 
   await page.locator('#btn-run').click();
-  await page.waitForFunction(() => {
-    const t = document.querySelector('#btn-run .btn-label')?.textContent || '';
-    return t.includes('done') || (!document.querySelector('#btn-run').classList.contains('loading') && t.includes('Continue'));
-  }, null, { timeout: 180000 });
+  await waitAgentIdle(page);
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/04-shopped.png` });
 

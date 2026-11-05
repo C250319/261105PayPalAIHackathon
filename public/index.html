@@ -54,7 +54,10 @@
               <button class="chip" data-errand="Picnic supplies for our 10-person team offsite on Friday: sparkling water, fruit, snacks, compostable plates and napkins. No alcohol. Budget $95.">Team picnic</button>
               <button class="chip" data-errand="We ran out of cleaning supplies: dish soap, sponges, disinfecting wipes and trash bags. Spend at most $45.">Cleaning run</button>
             </div>
-            <div class="row-end">
+            <div class="row-between">
+              <label class="switch" title="Run this errand without any AI: keyword parser + deterministic shopper. It is the path the app takes automatically when the daily free AI quota is used up.">
+                <input type="checkbox" id="rules-mode"><span>Rules-only mode (no AI)</span>
+              </label>
               <button class="btn btn-primary" id="btn-draft"><span class="btn-label">Draft mandate with AI</span></button>
             </div>
           </article>

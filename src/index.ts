@@ -97,10 +97,11 @@ async function handleApi(req: Request, env: Env, url: URL, ctx: ExecutionContext
     const errand = String(b.errand || '').trim();
     if (errand.length < 8) return fail(400, 'errand_required', 'Describe the errand in a sentence or two.');
     if (errand.length > 600) return fail(400, 'errand_too_long', 'Keep the errand under 600 characters.');
-    await limit(req, env, 'create', 25);
+    await limit(req, env, 'create', 40);
     const id = newId();
-    const { terms, by, aiError } = await draftMandate(env, errand);
-    return json(await mandateStub(env, id).create(id, terms, by, aiError), 201);
+    const forceRules = b.mode === 'rules';
+    const { terms, by, aiError } = await draftMandate(env, errand, forceRules);
+    return json(await mandateStub(env, id).create(id, terms, by, aiError, forceRules), 201);
   }
 
   if (method === 'POST' && path === '/api/mandates/batch') {
@@ -121,7 +122,7 @@ async function handleApi(req: Request, env: Env, url: URL, ctx: ExecutionContext
     const verified = await verifyWebhookSignature(env, req.headers, event).catch(() => false);
     if (!verified) return fail(401, 'unverified', 'Webhook signature could not be verified');
     const res = event.resource || {};
-    const ref: string = res.invoice_id || res.custom_id || res.supplementary_data?.related_ids?.order_id || '';
+    const ref: string = res.invoice_id || res.custom_id || res.purchase_units?.[0]?.custom_id || '';
     const m = String(ref).match(/([a-f0-9]{32})/);
     if (m) ctx.waitUntil(mandateStub(env, m[1]).webhook(String(event.event_type || ''), res).catch(() => undefined));
     return json({ ok: true });

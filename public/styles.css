@@ -120,6 +120,9 @@ input:disabled, textarea:disabled { background: var(--line-2); color: var(--mute
 .small-chips .chip { font-size: 12px; padding: 4px 10px; }
 
 .row-end { display: flex; justify-content: flex-end; margin-top: 12px; }
+.row-between { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.switch { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); cursor: pointer; user-select: none; }
+.switch input { width: 15px; height: 15px; accent-color: var(--brand); }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   border: 1px solid transparent; border-radius: 11px; padding: 9px 16px; font-weight: 650; cursor: pointer;
